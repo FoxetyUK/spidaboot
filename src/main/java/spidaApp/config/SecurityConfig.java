@@ -11,7 +11,7 @@ import spidaApp.web.LoggingAccessDeniedHandler;
 
 @EnableWebSecurity
 public class SecurityConfig extends WebSecurityConfigurerAdapter {
-
+/*
     @Autowired
     private LoggingAccessDeniedHandler accessDeniedHandler;
 
@@ -50,4 +50,5 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
             .and()
                 .withUser("manager").password("password").roles("MANAGER");
     }
+    */
 }
