@@ -1,0 +1,96 @@
+package spidaApp.dao.common;
+
+import java.lang.reflect.Field;
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+
+import javax.sql.DataSource;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+
+public class AbstractDao {
+
+	protected static enum Database {
+		ORACLE, POSTGRESQL, MSSQL
+	}
+	
+	protected final static Map<String, Object> EMPTY_PARAMS = Collections.unmodifiableMap(new HashMap<String, Object>());
+	protected final static Logger LOGGER = LoggerFactory.getLogger(AbstractDao.class);
+	
+	protected final String database;   
+	protected final NamedParameterJdbcTemplate jdbcTemplate;
+    protected final JdbcTemplate jdbcTemplateForCall;
+    
+    
+    
+public AbstractDao(DataSource dataSource) {
+    	
+    	String database = "ORACLE";
+
+    	
+    	try (Connection con = dataSource.getConnection()){
+    		database = con.getMetaData().getDatabaseProductName().toUpperCase();
+    	} catch (SQLException e) {
+    		LOGGER.error("failed to get database product name", e);
+		}
+    	
+    	
+    	this.database = database;
+        this.jdbcTemplate = new NamedParameterJdbcTemplate(dataSource);
+        this.jdbcTemplateForCall = new JdbcTemplate(dataSource);
+    }
+
+public NamedParameterJdbcTemplate getJdbcTemplate() {
+    return jdbcTemplate;
+}
+
+	/**
+	 * Осуществляет автоматический маппинг параметров пр-ры из БД и записи
+	 * @param rec - запись
+	 * @return маппинг параметров пр-ры из БД и записи
+	 */
+	public Map<String, Object> autoMap(Object rec) {
+		Map<String, Object> result = new HashMap<>();
+		Class c = rec.getClass();
+		Field[] allFields = c.getDeclaredFields();
+		for (Field field : allFields) {
+			Object filedValue = null;
+			field.setAccessible(true);
+			try {
+				filedValue = field.get(rec);
+			} catch (IllegalAccessException e) {
+				e.printStackTrace();
+			}
+
+			result.put( convertPropertyNameToDbProcedureParameterName( field.getName() ),
+						filedValue
+			          );
+		}
+		return result;
+	}
+	private String convertPropertyNameToDbProcedureParameterName(String propertyName) {
+		String result = propertyName.toUpperCase();
+		StringBuilder builder = new StringBuilder(result);
+		int underScoreCounter = 0;
+		for (int i=0; i < propertyName.length(); i++) {
+			if ( Character.isUpperCase( propertyName.charAt(i) ) ) {
+				builder.insert( i + underScoreCounter++, '_' );
+			}
+		}
+		return "p_" + builder.toString();
+	}
+	
+	 public Map<String, Object> map(Object ... keysAndValues) {
+	        Map<String, Object> result = new HashMap<>();
+	        for (int i=0; i<keysAndValues.length; i+=2) {
+	            result.put((String) keysAndValues[i], keysAndValues[i+1]);
+	        }
+	        return result;
+	    }
+}
